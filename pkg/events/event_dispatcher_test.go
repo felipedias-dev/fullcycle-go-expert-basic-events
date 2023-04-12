@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -24,7 +25,9 @@ func (e *TestEvent) GetDateTime() time.Time {
 	return time.Now()
 }
 
-type TestEventHandler struct{}
+type TestEventHandler struct {
+	ID int
+}
 
 func (h *TestEventHandler) HandleEvent(event EventInterface) error {
 	return nil
@@ -50,7 +53,16 @@ func (suite *EventDispatcherTestSuite) SetupTest() {
 }
 
 func (suite *EventDispatcherTestSuite) TestEventDispatcher_Register() {
-	err := suite.eventDispatcher.Register(suite.event.GetName(), &suite.handler)
+	err := suite.eventDispatcher.RegisterHandler(suite.event.GetName(), &suite.handler)
+	suite.Nil(err)
+	suite.Equal(1, len(suite.eventDispatcher.handlers[suite.event.GetName()]))
+
+	err = suite.eventDispatcher.RegisterHandler(suite.event.GetName(), &suite.handler2)
+	suite.Nil(err)
+	suite.Equal(2, len(suite.eventDispatcher.handlers[suite.event.GetName()]))
+
+	assert.Equal(suite.T(), suite.eventDispatcher.handlers[suite.event.GetName()][0], &suite.handler)
+	assert.Equal(suite.T(), suite.eventDispatcher.handlers[suite.event.GetName()][1], &suite.handler2)
 }
 
 func TestSuite(t *testing.T) {
