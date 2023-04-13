@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -90,6 +91,42 @@ func (suite *EventDispatcherTestSuite) TestEventDispatcher_Clear() {
 
 	suite.eventDispatcher.ClearHandlers()
 	suite.Equal(0, len(suite.eventDispatcher.handlers))
+}
+
+func (suite *EventDispatcherTestSuite) TestEventDispatcher_HasHandler() {
+	err := suite.eventDispatcher.RegisterHandler(suite.event.GetName(), &suite.handler)
+	suite.Nil(err)
+	suite.Equal(1, len(suite.eventDispatcher.handlers[suite.event.GetName()]))
+
+	err = suite.eventDispatcher.RegisterHandler(suite.event.GetName(), &suite.handler2)
+	suite.Nil(err)
+	suite.Equal(2, len(suite.eventDispatcher.handlers[suite.event.GetName()]))
+
+	assert.True(suite.T(), suite.eventDispatcher.HasHandler(suite.event.GetName(), &suite.handler))
+	assert.True(suite.T(), suite.eventDispatcher.HasHandler(suite.event.GetName(), &suite.handler2))
+	assert.False(suite.T(), suite.eventDispatcher.HasHandler(suite.event.GetName(), &suite.handler3))
+}
+
+type MockHandler struct {
+	mock.Mock
+}
+
+func (m *MockHandler) HandleEvent(event EventInterface) error {
+	m.Called(event)
+	return nil
+}
+
+func (suite *EventDispatcherTestSuite) TestEventDispatcher_Dispatch() {
+	eh := &MockHandler{}
+	eh.On("HandleEvent", &suite.event)
+	err := suite.eventDispatcher.RegisterHandler(suite.event.GetName(), eh)
+	suite.Nil(err)
+	suite.Equal(1, len(suite.eventDispatcher.handlers[suite.event.GetName()]))
+
+	err = suite.eventDispatcher.DispatchEvent(&suite.event)
+	suite.Nil(err)
+	eh.AssertExpectations(suite.T())
+	eh.AssertNumberOfCalls(suite.T(), "HandleEvent", 1)
 }
 
 func TestSuite(t *testing.T) {
