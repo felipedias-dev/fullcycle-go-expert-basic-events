@@ -1,6 +1,7 @@
 package events
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -30,7 +31,8 @@ type TestEventHandler struct {
 	ID int
 }
 
-func (h *TestEventHandler) HandleEvent(event EventInterface) error {
+func (h *TestEventHandler) HandleEvent(event EventInterface, wg *sync.WaitGroup) error {
+	wg.Done()
 	return nil
 }
 
@@ -111,8 +113,9 @@ type MockHandler struct {
 	mock.Mock
 }
 
-func (m *MockHandler) HandleEvent(event EventInterface) error {
+func (m *MockHandler) HandleEvent(event EventInterface, wg *sync.WaitGroup) error {
 	m.Called(event)
+	wg.Done()
 	return nil
 }
 
@@ -122,6 +125,24 @@ func (suite *EventDispatcherTestSuite) TestEventDispatcher_Dispatch() {
 	err := suite.eventDispatcher.RegisterHandler(suite.event.GetName(), eh)
 	suite.Nil(err)
 	suite.Equal(1, len(suite.eventDispatcher.handlers[suite.event.GetName()]))
+
+	eh2 := &MockHandler{}
+	eh2.On("HandleEvent", &suite.event)
+	err = suite.eventDispatcher.RegisterHandler(suite.event.GetName(), eh2)
+	suite.Nil(err)
+	suite.Equal(2, len(suite.eventDispatcher.handlers[suite.event.GetName()]))
+
+	eh3 := &MockHandler{}
+	eh3.On("HandleEvent", &suite.event)
+	err = suite.eventDispatcher.RegisterHandler(suite.event.GetName(), eh3)
+	suite.Nil(err)
+	suite.Equal(3, len(suite.eventDispatcher.handlers[suite.event.GetName()]))
+
+	eh4 := &MockHandler{}
+	eh4.On("HandleEvent", &suite.event)
+	err = suite.eventDispatcher.RegisterHandler(suite.event.GetName(), eh4)
+	suite.Nil(err)
+	suite.Equal(4, len(suite.eventDispatcher.handlers[suite.event.GetName()]))
 
 	err = suite.eventDispatcher.DispatchEvent(&suite.event)
 	suite.Nil(err)
